@@ -18,7 +18,7 @@
 
 
 </div>
-![alt text](image.png)
+![Windows Server Audit Tool](./image.png)
 
 ---
 
