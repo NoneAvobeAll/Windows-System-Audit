@@ -585,7 +585,7 @@ Contributions are **welcome and encouraged**! Here's how:
 
 ### Reporting Issues
 
-Found a bug? [Open an issue](https://github.com/yourusername/system-audit-tool/issues/new) with:
+Found a bug? [Open an issue](https://github.com/NoneAvobeAll/system-audit-tool/issues/new/choose) with:
 
 - OS Version
 - PowerShell Version
@@ -640,10 +640,7 @@ furnished to do so, subject to the following conditions...
 **Lead Developer & Architect:**
 - **Abubakkar Khan**  
   *System Engineer | Cybersecurity Researcher*  
-  - 🌐 Portfolio: [yourwebsite.com](https://yourwebsite.com)
-  - 💼 LinkedIn: [linkedin.com/in/abubakkar](https://linkedin.com/in/yourusername)
-  - 📧 Email: abubakkar@example.com
-  - 🐦 Twitter: [@yourusername](https://twitter.com/yourusername)
+  - 💼 LinkedIn: [linkedin.com/in/abubakkar](https://www.linkedin.com/in/abubakkarkhanfazlarabbi/)
 
 ### **Development Team:**
 - **SCT DevOps & Infrastructure Team**
@@ -675,15 +672,6 @@ Special thanks to:
 - ☕ Coffee & Dedication
 
 ---
-
-## 📞 Support & Community
-
-### Getting Help
-
-- 📖 **Documentation**: [GitHub Wiki](https://github.com/yourusername/system-audit-tool/wiki)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/yourusername/system-audit-tool/discussions)
-- 🐛 **Bug Reports**: [Issues](https://github.com/yourusername/system-audit-tool/issues)
-- 📧 **Email**: support@yourwebsite.com
 
 ### Stay Updated
 
