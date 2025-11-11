@@ -5,7 +5,7 @@
     Advanced performance audit tool for diagnosing system slowness on Windows servers, laptops, and desktops.
     Developed by: Abubakkar Khan - System Engineer | Cybersecurity Researcher
 .VERSION
-    1.0.3
+    1.0.4
 #>
 
 # Requires -RunAsAdministrator
@@ -18,7 +18,7 @@ Clear-Host
 function Show-Banner {
     Write-Host "╔═══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
     Write-Host "║                                                                       ║" -ForegroundColor Cyan
-    Write-Host "║          WINDOWS SYSTEM SLOWNESS AUDIT TOOL v1.0.3                    ║" -ForegroundColor Yellow
+    Write-Host "║          WINDOWS SYSTEM SLOWNESS AUDIT TOOL v1.0.4                    ║" -ForegroundColor Yellow
     Write-Host "║                                                                       ║" -ForegroundColor Cyan
     Write-Host "║          Developed By: Abubakkar Khan                                 ║" -ForegroundColor Green
     Write-Host "║          System Engineer | Cybersecurity Researcher                   ║" -ForegroundColor Green
@@ -41,7 +41,7 @@ function Show-Menu {
     Write-Host "  [9]  Windows Update Status" -ForegroundColor White
     Write-Host "  [10] Temperature and Hardware Health (WMI)" -ForegroundColor White
     Write-Host ""
-    Write-Host "  ===== ADVANCED DIAGNOSTICS (NEW) =====" -ForegroundColor Yellow
+    Write-Host "  ===== ADVANCED DIAGNOSTICS =====" -ForegroundColor Yellow
     Write-Host "  [13] PageFile and Virtual Memory Analysis" -ForegroundColor Cyan
     Write-Host "  [14] System Uptime and Boot Performance" -ForegroundColor Cyan
     Write-Host "  [15] Network Latency and Packet Loss Test" -ForegroundColor Cyan
@@ -50,6 +50,8 @@ function Show-Menu {
     Write-Host "  [18] Scheduled Tasks Analysis" -ForegroundColor Cyan
     Write-Host "  [19] Power Plan and Battery Status" -ForegroundColor Cyan
     Write-Host "  [20] DNS Resolution Performance Test" -ForegroundColor Cyan
+    Write-Host "  [21] Disk I/O Wait Time and Bottleneck Analysis" -ForegroundColor Cyan
+    Write-Host "  [22] Critical Event Log Analysis (ALL Sources)" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "  [11] ** FULL SYSTEM AUDIT (All Checks) **" -ForegroundColor Yellow
     Write-Host "  [12] Export Report to File" -ForegroundColor Green
@@ -749,6 +751,348 @@ function Get-DNSPerformanceTest {
     } catch {}
 }
 
+# ==================== NEW FEATURE 21: DISK I/O WAIT TIME ANALYSIS ====================
+
+function Get-DiskIOWaitTimeAnalysis {
+    Write-Host "`n[+] DISK I/O WAIT TIME AND BOTTLENECK ANALYSIS" -ForegroundColor Yellow
+    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor DarkGray
+    
+    Write-Host "`nDisk Performance Counters Analysis:" -ForegroundColor Cyan
+    
+    try {
+        # Get all physical disks
+        $physicalDisks = Get-PhysicalDisk
+        
+        foreach($disk in $physicalDisks) {
+            $diskNumber = $disk.DeviceID
+            $diskName = $disk.FriendlyName
+            
+            Write-Host "`nPhysical Disk: $diskName (Disk $diskNumber)" -ForegroundColor Cyan
+            Write-Host "Media Type    : $($disk.MediaType)" -ForegroundColor White
+            Write-Host "Bus Type      : $($disk.BusType)" -ForegroundColor White
+            Write-Host "Health Status : $($disk.HealthStatus)" -ForegroundColor $(if($disk.HealthStatus -eq "Healthy"){"Green"}else{"Red"})
+        }
+        
+        # Get disk I/O performance metrics
+        Write-Host "`n--- Disk I/O Performance Metrics ---" -ForegroundColor Cyan
+        
+        # Average Disk sec/Read (Read Latency)
+        $avgDiskSecRead = Get-Counter '\PhysicalDisk(_Total)\Avg. Disk sec/Read' -ErrorAction SilentlyContinue
+        if($avgDiskSecRead) {
+            $readLatencyMs = [math]::Round($avgDiskSecRead.CounterSamples.CookedValue * 1000, 2)
+            Write-Host "Avg Disk Read Latency  : $readLatencyMs ms" -ForegroundColor $(if($readLatencyMs -gt 20){"Red"}elseif($readLatencyMs -gt 10){"Yellow"}else{"Green"})
+            
+            if($readLatencyMs -gt 20) {
+                Write-Host "(CRITICAL) High read latency detected - disk bottleneck likely" -ForegroundColor Red
+            } elseif($readLatencyMs -gt 10) {
+                Write-Host "(WARNING) Elevated read latency - monitor disk performance" -ForegroundColor Yellow
+            }
+        }
+        
+        # Average Disk sec/Write (Write Latency)
+        $avgDiskSecWrite = Get-Counter '\PhysicalDisk(_Total)\Avg. Disk sec/Write' -ErrorAction SilentlyContinue
+        if($avgDiskSecWrite) {
+            $writeLatencyMs = [math]::Round($avgDiskSecWrite.CounterSamples.CookedValue * 1000, 2)
+            Write-Host "Avg Disk Write Latency : $writeLatencyMs ms" -ForegroundColor $(if($writeLatencyMs -gt 20){"Red"}elseif($writeLatencyMs -gt 10){"Yellow"}else{"Green"})
+            
+            if($writeLatencyMs -gt 20) {
+                Write-Host "(CRITICAL) High write latency detected - disk bottleneck likely" -ForegroundColor Red
+            } elseif($writeLatencyMs -gt 10) {
+                Write-Host "(WARNING) Elevated write latency - monitor disk performance" -ForegroundColor Yellow
+            }
+        }
+        
+        # Disk Queue Length
+        $diskQueueLength = Get-Counter '\PhysicalDisk(_Total)\Avg. Disk Queue Length' -ErrorAction SilentlyContinue
+        if($diskQueueLength) {
+            $queueLen = [math]::Round($diskQueueLength.CounterSamples.CookedValue, 2)
+            Write-Host "Avg Disk Queue Length  : $queueLen" -ForegroundColor $(if($queueLen -gt 2){"Red"}elseif($queueLen -gt 1){"Yellow"}else{"Green"})
+            
+            if($queueLen -gt 2) {
+                Write-Host "(WARNING) High disk queue - I/O requests are backing up" -ForegroundColor Red
+            }
+        }
+        
+        # Current Disk Queue Length
+        $currentDiskQueue = Get-Counter '\PhysicalDisk(_Total)\Current Disk Queue Length' -ErrorAction SilentlyContinue
+        if($currentDiskQueue) {
+            $currentQueue = [math]::Round($currentDiskQueue.CounterSamples.CookedValue, 2)
+            Write-Host "Current Disk Queue     : $currentQueue" -ForegroundColor White
+        }
+        
+        # Disk Transfers/sec
+        $diskTransfers = Get-Counter '\PhysicalDisk(_Total)\Disk Transfers/sec' -ErrorAction SilentlyContinue
+        if($diskTransfers) {
+            $transfersPerSec = [math]::Round($diskTransfers.CounterSamples.CookedValue, 2)
+            Write-Host "Disk Transfers/sec     : $transfersPerSec" -ForegroundColor White
+        }
+        
+        # Disk Read Bytes/sec and Write Bytes/sec
+        $diskReadBytes = Get-Counter '\PhysicalDisk(_Total)\Disk Read Bytes/sec' -ErrorAction SilentlyContinue
+        $diskWriteBytes = Get-Counter '\PhysicalDisk(_Total)\Disk Write Bytes/sec' -ErrorAction SilentlyContinue
+        
+        if($diskReadBytes) {
+            $readMBps = [math]::Round($diskReadBytes.CounterSamples.CookedValue / 1MB, 2)
+            Write-Host "Disk Read Throughput   : $readMBps MB/s" -ForegroundColor White
+        }
+        
+        if($diskWriteBytes) {
+            $writeMBps = [math]::Round($diskWriteBytes.CounterSamples.CookedValue / 1MB, 2)
+            Write-Host "Disk Write Throughput  : $writeMBps MB/s" -ForegroundColor White
+        }
+        
+        # Percent Disk Time (Disk Busy Time)
+        $percentDiskTime = Get-Counter '\PhysicalDisk(_Total)\% Disk Time' -ErrorAction SilentlyContinue
+        if($percentDiskTime) {
+            $diskBusyPercent = [math]::Round($percentDiskTime.CounterSamples.CookedValue, 2)
+            Write-Host "Disk Busy Time         : $diskBusyPercent%" -ForegroundColor $(if($diskBusyPercent -gt 90){"Red"}elseif($diskBusyPercent -gt 75){"Yellow"}else{"Green"})
+            
+            if($diskBusyPercent -gt 90) {
+                Write-Host "(CRITICAL) Disk is extremely busy (>90 percent)" -ForegroundColor Red
+            } elseif($diskBusyPercent -gt 75) {
+                Write-Host "(WARNING) Disk utilization is high (>75 percent)" -ForegroundColor Yellow
+            }
+        }
+        
+        # Percent Idle Time
+        $percentIdleTime = Get-Counter '\PhysicalDisk(_Total)\% Idle Time' -ErrorAction SilentlyContinue
+        if($percentIdleTime) {
+            $idlePercent = [math]::Round($percentIdleTime.CounterSamples.CookedValue, 2)
+            Write-Host "Disk Idle Time         : $idlePercent%" -ForegroundColor $(if($idlePercent -lt 10){"Red"}elseif($idlePercent -lt 25){"Yellow"}else{"Green"})
+        }
+        
+        # Split I/O per second
+        $splitIO = Get-Counter '\PhysicalDisk(_Total)\Split IO/Sec' -ErrorAction SilentlyContinue
+        if($splitIO) {
+            $splitIOPerSec = [math]::Round($splitIO.CounterSamples.CookedValue, 2)
+            Write-Host "Split I/O per second   : $splitIOPerSec" -ForegroundColor White
+            if($splitIOPerSec -gt 10) {
+                Write-Host "(INFO) High split I/O detected - possible disk fragmentation" -ForegroundColor Yellow
+            }
+        }
+        
+        # Top 10 Disk I/O Processes
+        Write-Host "`nTop 10 Processes by Disk I/O:" -ForegroundColor Cyan
+        try {
+            Get-Process | Where-Object {$_.Id -ne 0} | 
+                Sort-Object @{Expression={$_.TotalProcessorTime}; Descending=$true} | 
+                Select-Object -First 10 ProcessName, Id, @{Name="WorkingSet(MB)";Expression={[math]::Round($_.WorkingSet / 1MB, 2)}}, Handles | 
+                Format-Table -AutoSize
+        } catch {
+            Write-Host "(INFO) Unable to retrieve process I/O information" -ForegroundColor Gray
+        }
+        
+        # Disk Bottleneck Summary
+        Write-Host "`n--- Disk Bottleneck Assessment ---" -ForegroundColor Cyan
+        
+        $bottleneckScore = 0
+        if($readLatencyMs -gt 20 -or $writeLatencyMs -gt 20) { $bottleneckScore += 3 }
+        if($queueLen -gt 2) { $bottleneckScore += 2 }
+        if($diskBusyPercent -gt 90) { $bottleneckScore += 2 }
+        if($idlePercent -lt 10) { $bottleneckScore += 1 }
+        
+        if($bottleneckScore -ge 5) {
+            Write-Host "(CRITICAL) SEVERE DISK BOTTLENECK DETECTED" -ForegroundColor Red
+            Write-Host "Recommendations:" -ForegroundColor Yellow
+            Write-Host "  - Consider SSD upgrade if using HDD" -ForegroundColor White
+            Write-Host "  - Check for disk-intensive processes" -ForegroundColor White
+            Write-Host "  - Run disk defragmentation" -ForegroundColor White
+            Write-Host "  - Check for malware/antivirus scans" -ForegroundColor White
+        } elseif($bottleneckScore -ge 3) {
+            Write-Host "(WARNING) Moderate disk bottleneck detected" -ForegroundColor Yellow
+            Write-Host "Recommendations:" -ForegroundColor Cyan
+            Write-Host "  - Monitor disk usage patterns" -ForegroundColor White
+            Write-Host "  - Consider optimizing disk-heavy applications" -ForegroundColor White
+        } else {
+            Write-Host "(OK) Disk performance is within acceptable range" -ForegroundColor Green
+        }
+        
+    } catch {
+        Write-Host "(ERROR) Unable to retrieve disk I/O metrics: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+# ==================== NEW FEATURE 22: CRITICAL EVENT LOG ANALYSIS ====================
+
+function Get-CriticalEventLogAnalysis {
+    Write-Host "`n[+] CRITICAL EVENT LOG ANALYSIS (ALL SOURCES)" -ForegroundColor Yellow
+    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor DarkGray
+    
+    $startTime = (Get-Date).AddHours(-24)
+    
+    # System Log - Critical Events
+    Write-Host "`n=== SYSTEM LOG - CRITICAL EVENTS (Last 24h) ===" -ForegroundColor Red
+    try {
+        $systemCritical = Get-EventLog -LogName System -EntryType Error,Warning -After $startTime -ErrorAction SilentlyContinue | 
+            Where-Object {$_.EntryType -eq "Error"} | 
+            Select-Object -First 30
+        
+        if($systemCritical) {
+            Write-Host "Found $($systemCritical.Count) critical system events" -ForegroundColor Red
+            $systemCritical | Select-Object TimeGenerated, Source, EventID, @{Name="Message";Expression={$_.Message.Substring(0, [Math]::Min(100, $_.Message.Length))}} | Format-Table -AutoSize -Wrap
+        } else {
+            Write-Host "(OK) No critical system events found" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "(ERROR) Unable to retrieve system critical events" -ForegroundColor Red
+    }
+    
+    # Application Log - Critical Events
+    Write-Host "`n=== APPLICATION LOG - CRITICAL EVENTS (Last 24h) ===" -ForegroundColor Red
+    try {
+        $appCritical = Get-EventLog -LogName Application -EntryType Error -After $startTime -ErrorAction SilentlyContinue | 
+            Select-Object -First 30
+        
+        if($appCritical) {
+            Write-Host "Found $($appCritical.Count) critical application events" -ForegroundColor Red
+            $appCritical | Select-Object TimeGenerated, Source, EventID, @{Name="Message";Expression={$_.Message.Substring(0, [Math]::Min(100, $_.Message.Length))}} | Format-Table -AutoSize -Wrap
+        } else {
+            Write-Host "(OK) No critical application events found" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "(ERROR) Unable to retrieve application critical events" -ForegroundColor Red
+    }
+    
+    # Security Log - Failed Logins and Critical Events
+    Write-Host "`n=== SECURITY LOG - FAILED LOGINS & CRITICAL (Last 24h) ===" -ForegroundColor Red
+    try {
+        $securityEvents = Get-EventLog -LogName Security -After $startTime -ErrorAction SilentlyContinue | 
+            Where-Object {$_.EventID -in @(4625, 4771, 4776, 529, 530, 531, 532, 533, 534, 535, 536, 537, 539)} | 
+            Select-Object -First 20
+        
+        if($securityEvents) {
+            Write-Host "Found $($securityEvents.Count) failed login attempts or security events" -ForegroundColor Red
+            $securityEvents | Select-Object TimeGenerated, EventID, @{Name="User";Expression={$_.ReplacementStrings[0]}}, @{Name="Workstation";Expression={$_.ReplacementStrings[13]}} | Format-Table -AutoSize
+            
+            Write-Host "(WARNING) Multiple failed login attempts detected - possible brute force attack" -ForegroundColor Yellow
+        } else {
+            Write-Host "(OK) No failed login attempts detected" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "(INFO) Unable to retrieve security events (may require elevated permissions)" -ForegroundColor Yellow
+    }
+    
+    # Specific Critical Event IDs to Monitor
+    Write-Host "`n=== MONITORING CRITICAL EVENT IDs ===" -ForegroundColor Cyan
+    
+    $criticalEventIDs = @{
+        "System" = @{
+            "6008" = "Unexpected system shutdown"
+            "1001" = "System crash/bugcheck"
+            "41" = "System rebooted without cleanly shutting down"
+            "1074" = "System shutdown initiated"
+            "6005" = "Event Log service started"
+            "6006" = "Event Log service stopped"
+            "7000" = "Service failed to start"
+            "7001" = "Service depends on service that failed"
+            "7031" = "Service terminated unexpectedly"
+            "7034" = "Service crashed"
+        }
+        "Application" = @{
+            "1000" = "Application error"
+            "1001" = "Application hang"
+            "1002" = "Application crash"
+        }
+    }
+    
+    foreach($logName in $criticalEventIDs.Keys) {
+        Write-Host "`nChecking $logName Log for Known Critical Events:" -ForegroundColor Cyan
+        
+        foreach($eventID in $criticalEventIDs[$logName].Keys) {
+            try {
+                $events = Get-EventLog -LogName $logName -After $startTime -ErrorAction SilentlyContinue | 
+                    Where-Object {$_.EventID -eq $eventID}
+                
+                if($events) {
+                    $description = $criticalEventIDs[$logName][$eventID]
+                    Write-Host "  EventID $eventID ($description): Found $($events.Count) occurrences" -ForegroundColor Red
+                    $events | Select-Object -First 5 | Select-Object TimeGenerated, Source, Message | Format-List
+                }
+            } catch {}
+        }
+    }
+    
+    # Check Windows Error Reporting
+    Write-Host "`n=== WINDOWS ERROR REPORTING (WER) ===" -ForegroundColor Cyan
+    try {
+        $werEvents = Get-EventLog -LogName Application -Source "Windows Error Reporting" -After $startTime -ErrorAction SilentlyContinue | 
+            Select-Object -First 10
+        
+        if($werEvents) {
+            Write-Host "Found $($werEvents.Count) Windows Error Reporting events" -ForegroundColor Yellow
+            $werEvents | Select-Object TimeGenerated, EventID, Message | Format-Table -AutoSize -Wrap
+        } else {
+            Write-Host "(OK) No Windows Error Reporting events" -ForegroundColor Green
+        }
+    } catch {}
+    
+    # Disk-Related Critical Events
+    Write-Host "`n=== DISK-RELATED CRITICAL EVENTS ===" -ForegroundColor Cyan
+    try {
+        $diskEvents = Get-EventLog -LogName System -After $startTime -ErrorAction SilentlyContinue | 
+            Where-Object {$_.Source -match "disk|ntfs|volsnap" -and $_.EntryType -eq "Error"} | 
+            Select-Object -First 10
+        
+        if($diskEvents) {
+            Write-Host "Found $($diskEvents.Count) disk-related errors" -ForegroundColor Red
+            $diskEvents | Select-Object TimeGenerated, Source, EventID, Message | Format-Table -AutoSize -Wrap
+        } else {
+            Write-Host "(OK) No disk-related errors detected" -ForegroundColor Green
+        }
+    } catch {}
+    
+    # Network-Related Critical Events
+    Write-Host "`n=== NETWORK-RELATED CRITICAL EVENTS ===" -ForegroundColor Cyan
+    try {
+        $networkEvents = Get-EventLog -LogName System -After $startTime -ErrorAction SilentlyContinue | 
+            Where-Object {$_.Source -match "tcpip|dhcp|dns|netbt" -and $_.EntryType -eq "Error"} | 
+            Select-Object -First 10
+        
+        if($networkEvents) {
+            Write-Host "Found $($networkEvents.Count) network-related errors" -ForegroundColor Red
+            $networkEvents | Select-Object TimeGenerated, Source, EventID, Message | Format-Table -AutoSize -Wrap
+        } else {
+            Write-Host "(OK) No network-related errors detected" -ForegroundColor Green
+        }
+    } catch {}
+    
+    # Memory-Related Critical Events
+    Write-Host "`n=== MEMORY-RELATED CRITICAL EVENTS ===" -ForegroundColor Cyan
+    try {
+        $memoryEvents = Get-EventLog -LogName System -After $startTime -ErrorAction SilentlyContinue | 
+            Where-Object {$_.EventID -in @(2004, 2019, 2020, 2021)} | 
+            Select-Object -First 10
+        
+        if($memoryEvents) {
+            Write-Host "Found $($memoryEvents.Count) memory-related errors (possible RAM issues)" -ForegroundColor Red
+            $memoryEvents | Select-Object TimeGenerated, Source, EventID, Message | Format-Table -AutoSize -Wrap
+            Write-Host "(WARNING) Memory errors detected - consider running memory diagnostics" -ForegroundColor Yellow
+        } else {
+            Write-Host "(OK) No memory-related errors detected" -ForegroundColor Green
+        }
+    } catch {}
+    
+    # Event Log Summary
+    Write-Host "`n=== EVENT LOG SUMMARY ===" -ForegroundColor Cyan
+    try {
+        $totalSystemErrors = (Get-EventLog -LogName System -EntryType Error -After $startTime -ErrorAction SilentlyContinue).Count
+        $totalAppErrors = (Get-EventLog -LogName Application -EntryType Error -After $startTime -ErrorAction SilentlyContinue).Count
+        $totalSystemWarnings = (Get-EventLog -LogName System -EntryType Warning -After $startTime -ErrorAction SilentlyContinue).Count
+        
+        Write-Host "System Errors (24h)      : $totalSystemErrors" -ForegroundColor $(if($totalSystemErrors -gt 50){"Red"}elseif($totalSystemErrors -gt 20){"Yellow"}else{"White"})
+        Write-Host "Application Errors (24h) : $totalAppErrors" -ForegroundColor $(if($totalAppErrors -gt 50){"Red"}elseif($totalAppErrors -gt 20){"Yellow"}else{"White"})
+        Write-Host "System Warnings (24h)    : $totalSystemWarnings" -ForegroundColor $(if($totalSystemWarnings -gt 100){"Yellow"}else{"White"})
+        
+        if($totalSystemErrors -gt 50 -or $totalAppErrors -gt 50) {
+            Write-Host "`n(CRITICAL) High error count detected - immediate investigation recommended" -ForegroundColor Red
+        } elseif($totalSystemErrors -gt 20 -or $totalAppErrors -gt 20) {
+            Write-Host "`n(WARNING) Elevated error count - monitor system health" -ForegroundColor Yellow
+        } else {
+            Write-Host "`n(OK) Error count is within normal range" -ForegroundColor Green
+        }
+    } catch {}
+}
+
 function Invoke-FullAudit {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-Host "`n╔═══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
@@ -774,6 +1118,8 @@ function Invoke-FullAudit {
     Get-ScheduledTasksAnalysis
     Get-PowerPlanAnalysis
     Get-DNSPerformanceTest
+    Get-DiskIOWaitTimeAnalysis
+    Get-CriticalEventLogAnalysis
     
     Write-Host "`n╔═══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
     Write-Host "║                    FULL AUDIT COMPLETED                               ║" -ForegroundColor Magenta
@@ -801,7 +1147,7 @@ do {
     Show-Banner
     Show-Menu
     
-    $choice = Read-Host "`nSelect an option (0-20)"
+    $choice = Read-Host "`nSelect an option (0-22)"
     
     switch ($choice) {
         "1"  { Get-CPUUsage }
@@ -824,13 +1170,15 @@ do {
         "18" { Get-ScheduledTasksAnalysis }
         "19" { Get-PowerPlanAnalysis }
         "20" { Get-DNSPerformanceTest }
+        "21" { Get-DiskIOWaitTimeAnalysis }
+        "22" { Get-CriticalEventLogAnalysis }
         "0"  { 
             Write-Host "`n(OK) Exiting audit tool. Thank you!" -ForegroundColor Green
             Start-Sleep -Seconds 1
             break 
         }
         default { 
-            Write-Host "`n(ERROR) Invalid selection. Please choose 0-20." -ForegroundColor Red 
+            Write-Host "`n(ERROR) Invalid selection. Please choose 0-22." -ForegroundColor Red 
         }
     }
     
