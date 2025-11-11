@@ -18,7 +18,8 @@
 
 
 </div>
-![Windows Server Audit Tool](./image.png)
+
+<img src="image.png" alt="Windows Server Audit Tool" width="600"/>
 
 ---
 
