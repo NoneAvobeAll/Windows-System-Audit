@@ -918,7 +918,7 @@ function Get-CriticalEventLogAnalysis {
     Write-Host "`n[+] CRITICAL EVENT LOG ANALYSIS (ALL SOURCES)" -ForegroundColor Yellow
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor DarkGray
     
-    $startTime = (Get-Date).AddHours(-24)
+    $startTime = (Get-Date).AddHours(-168)  # Last 7 days 
     
     # System Log - Critical Events
     Write-Host "`n=== SYSTEM LOG - CRITICAL EVENTS (Last 24h) ===" -ForegroundColor Red

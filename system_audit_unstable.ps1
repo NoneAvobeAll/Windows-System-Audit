@@ -256,7 +256,7 @@ function Get-EventLogErrors {
     Write-Host "`n[+] SYSTEM EVENT LOG ERRORS (Last 24 Hours)" -ForegroundColor Yellow
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor DarkGray
     
-    $startTime = (Get-Date).AddHours(-24)
+    $startTime = (Get-Date).AddHours(-168)  # Last 7 days
     
     Write-Host "`nSystem Errors:" -ForegroundColor Cyan
     $systemErrors = Get-EventLog -LogName System -EntryType Error -After $startTime -EA SilentlyContinue | Select-Object -First 20
